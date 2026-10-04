@@ -777,15 +777,6 @@ namespace dxvk {
   }
   
   
-  void DxvkDevice::waitForIdle() {
-    m_submissionQueue.waitForIdle();
-    m_submissionQueue.lockDeviceQueue();
-
-    if (m_vkd->vkDeviceWaitIdle(m_vkd->device()) != VK_SUCCESS)
-      Logger::err("DxvkDevice: waitForIdle: Operation failed");
-
-    m_submissionQueue.unlockDeviceQueue();
-  }
   
   
   DxvkDevicePerfHints DxvkDevice::getPerfHints() {

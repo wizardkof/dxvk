@@ -5,11 +5,16 @@
 #include <queue>
 #include <vector>
 
+#ifdef DXVK_QUEUE_TEST
+#include "../../tests/queue_fixture_boundary.h"
+#else
 #include "../util/thread.h"
 
 #include "dxvk_cmdlist.h"
 #include "dxvk_latency.h"
 #include "dxvk_presenter.h"
+
+#endif
 
 namespace dxvk {
   
@@ -229,6 +234,9 @@ namespace dxvk {
     void unlockDeviceQueue();
     
   private:
+#ifdef DXVK_QUEUE_TEST
+    friend class QueueTestAccess;
+#endif
 
     DxvkDevice*                 m_device;
     DxvkCheckpointBuffer*       m_checkpoints = nullptr;
@@ -254,11 +262,17 @@ namespace dxvk {
     std::queue<DxvkSubmitEntry> m_submitQueue;
     std::queue<DxvkSubmitEntry> m_finishQueue;
 
-    // HELIOS: command lists whose host work never retired before a
-    // guest-side device-loss teardown. Deliberately kept alive for the
-    // process lifetime — resetting or destroying a command pool with
-    // pending buffers is UB against a still-healthy host device.
-    std::vector<Rc<DxvkCommandList>> m_leakedCmdLists;
+    // Retain one irrevocable reference for each list with uncertain host
+    // retirement. A vector of Rc alone would release them during destruction
+    // of this queue, running reset() on possibly pending command buffers.
+    // Without a retirement proof the reference lasts until process exit.
+    // Called only under m_mutex, from the owning submission/finish worker.
+    uint64_t m_unretiredCmdLists = 0;
+
+    void retainUnretiredCommandList(const Rc<DxvkCommandList>& list) {
+      list->incRef();
+      m_unretiredCmdLists++;
+    }
 
     dxvk::thread                m_submitThread;
     dxvk::thread                m_finishThread;
