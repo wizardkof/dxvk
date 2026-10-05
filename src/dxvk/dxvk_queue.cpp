@@ -1,3 +1,5 @@
+#include <array>
+
 #ifdef DXVK_QUEUE_TEST
 #include "../../tests/queue_fixture_device.h"
 #else
